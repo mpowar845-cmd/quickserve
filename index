@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Advait Cafe • QuickServe (Dine-in)</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body { font-family: system-ui, sans-serif; background:#fafafa; }
+.navbar { background:#111; }
+.navbar .brand { color:#fff; font-weight:700; display:flex; align-items:center; gap:10px; }
+.brand img { width:36px; height:36px; border-radius:50%; }
+.menu-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:15px; }
+.card { border:none; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.1); }
+.badge-available { background:#3b7f3b; }
+#cartPanel { position:fixed; right:20px; top:80px; width:300px; background:#fff; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,.15); z-index:999; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark">
+<div class="container py-2 d-flex justify-content-between align-items-center">
+<div class="brand">
+<span>Advait Cafe • QuickServe</span>
+</div>
+
+<div class="d-flex gap-2 align-items-center">
+
+<select id="tableNo" class="form-select form-select-sm w-auto">
+<option value="">Select Table</option>
+<option value="1">Table 1</option>
+<option value="2">Table 2</option>
+<option value="3">Table 3</option>
+<option value="4">Table 4</option>
+<option value="5">Table 5</option>
+</select>
+
+<button class="btn btn-warning btn-sm" onclick="openCart()">
+🛒 Cart (<span id='cartCount'>0</span>)
+</button>
+
+<button class="btn btn-success btn-sm" onclick="orderNow()">
+Order Now
+</button>
+
+</div>
+</div>
+</nav>
+
+<div class="container py-3">
+
+<div class="d-flex justify-content-between align-items-end mt-3">
+<div>
+<h3 class="mb-1">Main Menu</h3>
+<div class="text-muted">HOT • FRESH • FAST</div>
+</div>
+
+<div class="d-flex gap-2">
+<input id="searchInput" class="form-control form-control-sm" placeholder="Search: Pizza, Burger...">
+<select id="categorySelect" class="form-select form-select-sm w-auto"></select>
+</div>
+</div>
+
+<div id="menuGrid" class="menu-grid mt-3"></div>
+
+<hr>
+<p class="text-muted small">© Advait Cafe • Toap, Kolhapur</p>
+</div>
+
+<!-- CART PANEL -->
+<div id="cartPanel" class="d-none p-3">
+<h5>Your Cart</h5>
+<div id="cartItems" style="max-height:300px; overflow-y:auto;" class="mt-2"></div>
+<hr>
+<h6>Total: ₹ <span id="cartTotal">0</span></h6>
+</div>
+
+<!-- SIZE MODAL -->
+<div class="modal" tabindex="-1" id="sizeModal">
+<div class="modal-dialog">
+<div class="modal-content p-3">
+<h5>Select Size</h5>
+<p id="pizzaName" class="fw-bold"></p>
+<button id="btnSmall" class="btn btn-outline-primary w-100 mb-2"></button>
+<button id="btnMedium" class="btn btn-outline-primary w-100"></button>
+<button class="btn btn-secondary w-100 mt-3" onclick="hideSizeModal()">Cancel</button>
+</div>
+</div>
+</div>
+
+<script>
+
+/* ================= MENU ================= */
+const MENU = [
+
+{ category:'Pizza (Small / Medium)', items:[
+{ name:'Margherita Pizza', priceSmall:70, priceMedium:90, desc:'Classic mozzarella pizza.' },
+{ name:'Classic Pizza', priceSmall:80, priceMedium:100, desc:'Veg loaded pizza.' },
+{ name:'Indian Bite Pizza', priceSmall:90, priceMedium:110, desc:'Indian style spicy pizza.' },
+{ name:'Cheese Brust Pizza', priceSmall:130, priceMedium:170, desc:'Extra cheese burst.' },
+{ name:'Bread Pizza', priceSmall:null, priceMedium:40, desc:'Bread base pizza.' },
+{ name:'Paneer Pizza', priceSmall:100, priceMedium:120, desc:'Paneer topping pizza.' },
+{ name:'Advait Special Pizza', priceSmall:150, priceMedium:200, desc:'Dry fruits special.' },
+]},
+
+{ category:'French Fries', items:[
+{ name:'Salted Fries', price:40, desc:'Classic salted fries.' },
+{ name:'Peri Peri Fries', price:50, desc:'Spicy fries.' },
+{ name:'Masala Fries', price:50, desc:'Masala fries.' },
+]},
+
+{ category:'Other Menu', items:[
+{ name:'Bread Patis', price:20, desc:'Crispy patis.' },
+{ name:'Bombay Vada', price:15, desc:'Spicy vada.' },
+{ name:'Spring Potato', price:30, desc:'Twisted potato.' },
+{ name:'Plain Maggie', price:25, desc:'Simple maggie.' },
+{ name:'Cheese Maggie', price:40, desc:'Cheesy maggie.' },
+{ name:'Veg Mix Maggie', price:35, desc:'Veg loaded maggie.' },
+]},
+
+{ category:'Burger', items:[
+{ name:'Classic Veggie Burger', price:50, desc:'Veg burger.' },
+{ name:'Mushroom Burger', price:60, desc:'Mushroom burger.' },
+{ name:'Paneer Burger', price:60, desc:'Paneer burger.' },
+{ name:'Cheese Burger', price:60, desc:'Cheese burger.' },
+]},
+
+{ category:'Sandwich', items:[
+{ name:'Plain Sandwich', price:30, desc:'Simple sandwich.' },
+{ name:'Plain Cheese Sandwich', price:40, desc:'Cheese sandwich.' },
+{ name:'Grill Sandwich', price:40, desc:'Grill sandwich.' },
+{ name:'Grill Cheese Sandwich', price:50, desc:'Grill cheese sandwich.' },
+]},
+
+{ category:'Extra', items:[
+{ name:'Extra Cheese', price:10, desc:'Add extra cheese.' },
+{ name:'Water Bottle', price:20, desc:'Packaged water.' },
+]},
+
+{ category:'Drink & Beverage', items:[
+{ name:'Hot Coffee', price:25, desc:'Hot coffee.' },
+{ name:'Cold Coffee', price:60, desc:'Cold coffee.' },
+{ name:'Black Tea', price:10, desc:'Black tea.' },
+{ name:'Green Tea', price:30, desc:'Green tea.' },
+{ name:'Lemon Tea', price:30, desc:'Lemon tea.' },
+{ name:'Oreo Shake', price:80, desc:'Oreo shake.' },
+{ name:'CAD-B', price:80, desc:'Chocolate drink.' },
+]}
+
+];
+
+/* CATEGORY FILTER */
+const categorySelect=document.getElementById("categorySelect");
+categorySelect.innerHTML=`<option value="all">All Menu</option>`+
+MENU.map((m,i)=>`<option value="${i}">${m.category}</option>`).join("");
+
+categorySelect.addEventListener("change",renderMenu);
+document.getElementById("searchInput").addEventListener("input",renderMenu);
+
+/* RENDER */
+function renderMenu(){
+const grid=document.getElementById("menuGrid");
+grid.innerHTML="";
+const q=document.getElementById("searchInput").value.toLowerCase();
+const cat=categorySelect.value;
+const sections=cat==="all"?MENU:[MENU[Number(cat)]];
+
+sections.forEach(section=>{
+section.items.filter(i=>i.name.toLowerCase().includes(q)).forEach(i=>{
+let priceHtml="";
+if("priceSmall" in i){
+priceHtml=`<div class='text-success fw-bold'>Small: ₹${i.priceSmall ?? "-"} • Medium: ₹${i.priceMedium ?? "-"}</div>`;
+}else{
+priceHtml=`<div class='text-success fw-bold'>₹ ${i.price}</div>`;
+}
+grid.innerHTML+=`
+<div class="card">
+<div class="card-body">
+<div class="d-flex justify-content-between">
+<h6>${i.name}</h6>
+<span class="badge badge-available">Available</span>
+</div>
+<p class="small text-muted mb-2">${i.desc}</p>
+${priceHtml}
+<button class="btn btn-dark btn-sm mt-2" onclick='addToCart(${JSON.stringify(i)})'>Add to Cart</button>
+</div>
+</div>`;
+});
+});
+}
+renderMenu();
+
+/* CART */
+let cart=[];
+
+function openCart(){
+document.getElementById("cartPanel").classList.toggle("d-none");
+}
+
+function addToCart(item){
+if("priceSmall" in item){ showSizeModal(item); }
+else{ cart.push({name:item.name,price:item.price}); updateCart(); }
+}
+
+function showSizeModal(item){
+document.getElementById("pizzaName").textContent=item.name;
+document.getElementById("btnSmall").textContent=`Small - ₹${item.priceSmall}`;
+document.getElementById("btnMedium").textContent=`Medium - ₹${item.priceMedium}`;
+
+document.getElementById("btnSmall").onclick=()=>{
+if(item.priceSmall!=null){
+cart.push({name:item.name+" (Small)",price:item.priceSmall});
+hideSizeModal(); updateCart();
+}
+};
+document.getElementById("btnMedium").onclick=()=>{
+cart.push({name:item.name+" (Medium)",price:item.priceMedium});
+hideSizeModal(); updateCart();
+};
+
+document.getElementById("sizeModal").style.display="block";
+}
+
+function hideSizeModal(){
+document.getElementById("sizeModal").style.display="none";
+}
+
+function updateCart(){
+document.getElementById("cartCount").textContent=cart.length;
+const box=document.getElementById("cartItems");
+box.innerHTML="";
+let total=0;
+cart.forEach((item,i)=>{
+total+=Number(item.price);
+box.innerHTML+=`
+<div class="d-flex justify-content-between border-bottom py-2">
+<div>
+<b>${item.name}</b><br>
+<small>₹ ${item.price}</small>
+</div>
+<button class='btn btn-sm btn-danger' onclick='removeItem(${i})'>X</button>
+</div>`;
+});
+document.getElementById("cartTotal").textContent=total;
+}
+
+function removeItem(i){
+cart.splice(i,1);
+updateCart();
+}
+
+/* ORDER */
+function orderNow(){
+if(cart.length===0){ alert("Cart is empty!"); return; }
+
+const table=document.getElementById("tableNo").value;
+if(table===""){ alert("Please select table number!"); return; }
+
+const name=prompt("Enter Customer Name:");
+if(!name){ alert("Name required!"); return; }
+
+let msg=`🧾 *New Order - Advait Cafe*\n\n👤 Name: ${name}\n🪑 Table: ${table}\n\n🍽 Order:\n`;
+let total=0;
+cart.forEach(item=>{ msg+=`• ${item.name} - ₹${item.price}\n`; total+=Number(item.price); });
+msg+=`\n💰 Total: ₹${total}`;
+
+const phoneNumber="7972003915"; 
+window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(msg)}`,"_blank");
+
+cart=[]; updateCart();
+document.getElementById("tableNo").value="";
+}
+
+</script>
+</body>
+</html>
